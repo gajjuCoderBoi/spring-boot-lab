@@ -1,7 +1,7 @@
 package com.ga.musiclabboot.config;
 
 
-import com.ga.service.UserService;
+import com.ga.musiclabboot.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;

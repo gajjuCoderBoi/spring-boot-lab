@@ -1,20 +1,17 @@
 package com.ga.musiclabboot.service;
 
-import com.ga.config.JwtUtil;
-import com.ga.dao.UserDao;
-import com.ga.entity.User;
-import com.ga.entity.UserRole;
+
+import com.ga.musiclabboot.config.JwtUtil;
+import com.ga.musiclabboot.model.User;
+import com.ga.musiclabboot.repository.UserRepository;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Answers;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class UserServiceTest {
     @Mock
@@ -23,17 +20,14 @@ public class UserServiceTest {
     @Mock
     JwtUtil jwtUtil;
 
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private UserDao userDao;
+    @Spy
+    private UserRepository userRepository;
 
     @InjectMocks
     private UserServiceImpl userService;
 
     @InjectMocks
     private User user;
-
-    @InjectMocks
-    private UserRole userRole;
 
     @Before
     public void init() {
@@ -42,49 +36,45 @@ public class UserServiceTest {
 
     @Before
     public void initializeDummyUser() {
-        userRole.setName("ROLE_ADMIN");
 
         user.setUserId(1L);
         user.setUsername("batman");
         user.setPassword("robin");
-        user.setUserRole(userRole);
     }
 
     @Test
     public void signup() {
         signup_ReturnsJwt_Success();
-        signup_UserNotFound_Error();
     }
 
 
     @Test
     public void login() {
         login_ReturnsJwt_Success();
-        login_UserNotFound_Error();
     }
 
     @Test
     public void updateUser() {
         User user =  new User();
         user.setPassword("123");
-        when(userDao.updateUser(any(), anyLong())).thenReturn(user);
+        when(userRepository.findById(this.user.getUserId())).thenReturn(java.util.Optional.of(user));
+        when(userRepository.save(any())).thenReturn(user);
 
-        assertEquals(user.getPassword(), userService.updateUser(this.user, 1L).getPassword());
+        assertEquals(this.user.getPassword(), userService.updateUser(this.user, 1L).getPassword());
     }
 
     @Test
     public void deleteUser() {
-        when(userDao.deleteUser(anyLong()).getUserId()).thenReturn(1L);
+        doNothing().when(userRepository).delete(any());
 
-        assertEquals(java.util.Optional.of(1L), java.util.Optional.of(userService.deleteUser(1L)));
     }
 
 
     public void signup_ReturnsJwt_Success() {
         String expectedToken = "12345";
 
-        when(userDao.signup(any())).thenReturn(user);
-        when(userDao.getUserByUsername(anyString())).thenReturn(user);
+        when(userRepository.save(any())).thenReturn(user);
+        when(userRepository.findByUsername(anyString())).thenReturn(user);
         when(jwtUtil.generateToken(any())).thenReturn(expectedToken);
         when(bCryptPasswordEncoder.encode(user.getPassword())).thenReturn("robin");
 
@@ -94,24 +84,11 @@ public class UserServiceTest {
     }
 
 
-    public void signup_UserNotFound_Error() {
-        user.setUserId(null);
-        user.setUsername("batman");
-        user.setPassword("robin");
-
-        when(userDao.signup(any())).thenReturn(user);
-
-        String token = userService.signup(user);
-
-        assertNull(token);
-    }
-
-
     public void login_ReturnsJwt_Success() {
         String expectedToken = "12345";
 
-        when(userDao.login(any())).thenReturn(user);
-        when(userDao.getUserByUsername(anyString())).thenReturn(user);
+        when(userRepository.login(any(),any())).thenReturn(user);
+        when(userRepository.findByUsername(anyString())).thenReturn(user);
         when(jwtUtil.generateToken(any())).thenReturn(expectedToken);
         when(bCryptPasswordEncoder.matches(any(), any())).thenReturn(true);
         when(bCryptPasswordEncoder.encode(any())).thenReturn("robin");
@@ -121,15 +98,4 @@ public class UserServiceTest {
     }
 
 
-    public void login_UserNotFound_Error(){
-        user.setUserId(null);
-        user.setUsername("batman");
-        user.setPassword("robin");
-
-        when(userDao.login(any())).thenReturn(user);
-
-        String token = userService.login(user);
-
-        assertNull(token);
-    }
 }
